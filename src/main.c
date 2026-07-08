@@ -1,4 +1,5 @@
 #include "./include/CPU.h"
+//#include "./include/ByteToBin.h" <-- Uncomment to debug
 
 #include <assert.h>
 #include <stdio.h>

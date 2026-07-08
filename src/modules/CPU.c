@@ -1,4 +1,6 @@
 #include "../include/CPU.h"
+#include "../include/Memory.h"
+#include "../include/Error.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -18,7 +20,7 @@ void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result) {
     }
 }
 
-void load_program(uint8_t* program, CPU_STATUS* status, size_t size) {
+void load_program(const uint8_t* program, CPU_STATUS* status, size_t size) {
     if (size > RAM_SIZE) {
         size = RAM_SIZE; // avoid overflowing memory[]
     }
@@ -32,7 +34,7 @@ void clear_memory(CPU_STATUS* status) {
 
 // Takes ownership of `program` and frees it internally. Caller must not
 // use or free `program` after calling this function
-void execute_prog(uint8_t* program, CPU_STATUS* status) {
+void execute_prog(const uint8_t* program, CPU_STATUS* status) {
     status->program_counter = 0;
     while (status->program_counter < RAM_SIZE && program[status->program_counter] != 0x00) {
         uint8_t opcode = program[(size_t) status->program_counter];
@@ -66,7 +68,7 @@ uint8_t* read_prog(CPU_STATUS* status) { //Function to retrieve a program from m
         program_counter++; //Increase program counter
     }
 
-    uint8_t* program = malloc((size_t) program_counter); //Allocate an array of program counter size
+    uint8_t* program = malloc((size_t) program_counter + 1); //Allocate an array of program counter size
     if (program == NULL) return NULL;
 
     for (size_t i = 0; i < program_counter; i++) {
@@ -78,77 +80,70 @@ uint8_t* read_prog(CPU_STATUS* status) { //Function to retrieve a program from m
     return program;
 }
 
-bool read_mem_accessible(uint16_t addr, CPU_STATUS* status, uint8_t* out_value) {
-      if (addr >= RAM_SIZE) {
-          fprintf(stderr, "read_mem_accessible: address 0x%04X out of bounds\n", addr);
-          return false;
-      }
-      *out_value = status->memory[addr];
-      return true;
-}
-
-void write_mem_accessible(uint16_t addr, uint8_t value, CPU_STATUS* status){ //Write into one memory slot
-    if (addr >= RAM_SIZE) { //Check if address is in bounds
-        fprintf(stderr, "write_mem: address 0x%04X out of bounds\n", addr);
-        return;
-    }
-    
-    status->memory[addr] = value;
-}
-
-uint8_t read_mem(uint16_t addr, CPU_STATUS *status){ //Unrestricted read, no bounds check
-    return status->memory[addr];
-}
-
-void write_mem(uint16_t addr, uint8_t value, CPU_STATUS *status){ //Unrestricted write, no bounds check
-    status->memory[addr] = value;
-}
-
-uint16_t read_mem_u16(uint16_t addr, CPU_STATUS* status){ //Read one 16 bit word from memory
-    //NES is little-endian meaning least significant come before most significant
-    uint16_t low  = read_mem(addr, status);
-    uint16_t high = read_mem(addr + 1, status);
-
-    return (uint16_t)((high << 8) | low); //Cast to uint16_t just in case
-    //Shift most significant 8 bits left and or with low to add least significant 
-}
-
-void write_mem_u16(uint16_t value, uint16_t addr, CPU_STATUS* status) { //Write one 16 bit word to memory
-    uint8_t low  = (uint8_t)(value & 0x00FF);       //Mask off the low byte
-    uint8_t high = (uint8_t)((value >> 8) & 0x00FF); //Shift right 8 bits to get the high byte, mask just in case
-
-    write_mem(addr, low, status);       //Store low byte at addr
-    write_mem(addr + 1, high, status);  //Store high byte at addr + 1
-}
-
-bool read_mem_u16_accessible(uint16_t addr, CPU_STATUS* status, uint16_t* out_value){ //Read one 16 bit word from memory, bounds-checked
-    //NES is little-endian meaning least significant come before most significant
-    uint8_t out_low;
-    uint8_t out_high;
-
-    if (!read_mem_accessible(addr, status, &out_low)) {
-        fprintf(stderr, "read_mem_u16_accessible: address 0x%04X out of bounds\n", addr);
-        return false;
-    }
-    if (!read_mem_accessible(addr + 1, status, &out_high)) {
-        fprintf(stderr, "read_mem_u16_accessible: address 0x%04X out of bounds\n", addr + 1);
-        return false;
-    }
-
-    *out_value = (uint16_t)((out_high << 8) | out_low);
-    return true;
-}
-
-void write_mem_u16_accessible(uint16_t value, uint16_t addr, CPU_STATUS* status) { //Write one 16 bit word to memory, bounds-checked
-    uint8_t low  = (uint8_t)(value & 0x00FF);       //Mask off the low byte
-    uint8_t high = (uint8_t)((value >> 8) & 0x00FF); //Shift right 8 bits to get the high byte, mask just in case
-    write_mem_accessible(addr, low, status);       //Store low byte at addr
-    write_mem_accessible(addr + 1, high, status);  //Store high byte at addr + 1
-}
-
 void reset_cpu(CPU_STATUS *status) {
     status->status = 0;
     status->register_a = 0;
     status->register_x = 0;
+    status->register_y = 0;
     status->program_counter = read_mem_u16(0xFFFC, status);
+}
+
+uint8_t wrapping_add(uint8_t pos, uint8_t reg){
+    return (uint8_t) pos + reg;
+}
+
+uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
+    switch (mode) {
+        case Immediate: return status->program_counter;
+
+        case ZeroPage: return (uint16_t) read_mem(status->program_counter, status);
+
+        case Absolute: return read_mem_u16(status->program_counter, status);
+
+        case ZeroPage_X: {
+            uint8_t pos = read_mem(status->program_counter, status);
+            uint16_t addr = (uint16_t) wrapping_add(pos, status->register_x);
+            return addr;
+        }
+
+        case ZeroPage_Y: {
+            uint8_t pos = read_mem(status->program_counter, status);
+            uint16_t addr = (uint16_t) wrapping_add(pos, status->register_y);
+            return addr;
+        }
+        
+        case Absolute_X: {
+            uint16_t pos = read_mem_u16(status->program_counter, status);
+            uint16_t addr = pos + status->register_x;
+            return addr;
+        }
+
+        case Absolute_Y: {
+            uint16_t pos = read_mem_u16(status->program_counter, status);
+            uint16_t addr = pos +  status->register_y;
+            return addr;
+        }
+
+        case Indirect_X: {
+            uint8_t base = read_mem(status->program_counter, status);
+            uint8_t ptr = wrapping_add(base, status->register_x);
+            uint8_t lo = read_mem(ptr, status);
+            uint8_t hi = read_mem(ptr + 1, status);
+            uint16_t addr = (hi << 8) | lo;
+            return addr;
+        }
+
+        case Indirect_Y: {
+            uint8_t base = read_mem(status->program_counter, status);
+            uint8_t lo = read_mem(base, status);
+            uint8_t hi = read_mem((uint8_t) (base + 1), status);
+            uint16_t deref_base = (hi << 8) | lo;
+            uint16_t addr = deref_base + status->register_y;
+            return addr;
+        }
+
+        case NoneAddressing: {
+            panic("get_operand_address: unimplemented addressing mode %d", mode);
+        }
+    }
 }

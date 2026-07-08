@@ -1,7 +1,5 @@
 #include "../include/CPU.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -32,6 +30,8 @@ void clear_memory(CPU_STATUS* status) {
     memset(status->memory, 0, RAM_SIZE);
 }
 
+// Takes ownership of `program` and frees it internally. Caller must not
+// use or free `program` after calling this function
 void execute_prog(uint8_t* program, CPU_STATUS* status) {
     status->program_counter = 0;
     while (status->program_counter < RAM_SIZE && program[status->program_counter] != 0x00) {
@@ -55,6 +55,8 @@ void execute_prog(uint8_t* program, CPU_STATUS* status) {
                 break;
         }
     }
+
+    free(program);
 }
 
 
@@ -71,23 +73,34 @@ uint8_t* read_prog(CPU_STATUS* status) { //Function to retrieve a program from m
         program[i] = status->memory[i]; //Store program in alloc
     }
 
+    program[program_counter] = 0x00; // explicit terminator
+    
     return program;
 }
 
-uint8_t read_mem(uint16_t addr, CPU_STATUS* status){ //Read one memory slot
-    if (addr >= RAM_SIZE) { //Check if address is in bounds
-        fprintf(stderr, "read_mem: address 0x%04X out of bounds\n", addr);
-        return 0;
-    }
-    return status->memory[addr]; 
+bool read_mem_accessible(uint16_t addr, CPU_STATUS* status, uint8_t* out_value) {
+      if (addr >= RAM_SIZE) {
+          fprintf(stderr, "read_mem_accessible: address 0x%04X out of bounds\n", addr);
+          return false;
+      }
+      *out_value = status->memory[addr];
+      return true;
 }
 
-void write_mem(uint16_t addr, uint8_t value, CPU_STATUS* status){ //Write into one memory slot
+void write_mem_accessible(uint16_t addr, uint8_t value, CPU_STATUS* status){ //Write into one memory slot
     if (addr >= RAM_SIZE) { //Check if address is in bounds
         fprintf(stderr, "write_mem: address 0x%04X out of bounds\n", addr);
         return;
     }
     
+    status->memory[addr] = value;
+}
+
+uint8_t read_mem(uint16_t addr, CPU_STATUS *status){ //Unrestricted read, no bounds check
+    return status->memory[addr];
+}
+
+void write_mem(uint16_t addr, uint8_t value, CPU_STATUS *status){ //Unrestricted write, no bounds check
     status->memory[addr] = value;
 }
 
@@ -108,5 +121,34 @@ void write_mem_u16(uint16_t value, uint16_t addr, CPU_STATUS* status) { //Write 
     write_mem(addr + 1, high, status);  //Store high byte at addr + 1
 }
 
+bool read_mem_u16_accessible(uint16_t addr, CPU_STATUS* status, uint16_t* out_value){ //Read one 16 bit word from memory, bounds-checked
+    //NES is little-endian meaning least significant come before most significant
+    uint8_t out_low;
+    uint8_t out_high;
 
+    if (!read_mem_accessible(addr, status, &out_low)) {
+        fprintf(stderr, "read_mem_u16_accessible: address 0x%04X out of bounds\n", addr);
+        return false;
+    }
+    if (!read_mem_accessible(addr + 1, status, &out_high)) {
+        fprintf(stderr, "read_mem_u16_accessible: address 0x%04X out of bounds\n", addr + 1);
+        return false;
+    }
 
+    *out_value = (uint16_t)((out_high << 8) | out_low);
+    return true;
+}
+
+void write_mem_u16_accessible(uint16_t value, uint16_t addr, CPU_STATUS* status) { //Write one 16 bit word to memory, bounds-checked
+    uint8_t low  = (uint8_t)(value & 0x00FF);       //Mask off the low byte
+    uint8_t high = (uint8_t)((value >> 8) & 0x00FF); //Shift right 8 bits to get the high byte, mask just in case
+    write_mem_accessible(addr, low, status);       //Store low byte at addr
+    write_mem_accessible(addr + 1, high, status);  //Store high byte at addr + 1
+}
+
+void reset_cpu(CPU_STATUS *status) {
+    status->status = 0;
+    status->register_a = 0;
+    status->register_x = 0;
+    status->program_counter = read_mem_u16(0xFFFC, status);
+}

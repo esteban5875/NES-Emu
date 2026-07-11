@@ -28,7 +28,9 @@ typedef struct CPU_STATUS {
 } CPU_STATUS;
 
 extern void load_program(const uint8_t* program, CPU_STATUS* status, const size_t size);
-extern void execute_prog(const uint8_t* program, CPU_STATUS* status);
+extern void execute_prog(uint8_t* program, CPU_STATUS* status);
 extern uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status);
 extern void reset_cpu(CPU_STATUS* status);
+extern void lda(CPU_STATUS* status, const AddressingModes mode);
+extern uint8_t* read_prog(CPU_STATUS* status);
 

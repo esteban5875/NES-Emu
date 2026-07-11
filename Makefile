@@ -1,6 +1,6 @@
 # ---- Configuration ----
 CC      := gcc
-CFLAGS  := -Wall -Wextra -std=c11 -Iinclude
+CFLAGS  := -Wall -Wextra -std=c99 -g -Iinclude
 BIN_DIR := bin
 TARGET  := $(BIN_DIR)/app
 

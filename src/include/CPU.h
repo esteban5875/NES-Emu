@@ -1,36 +1,50 @@
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include "Consts.h"
+#include "CPU_Data.h"
 
-typedef enum AddressingModes { //Enum for CPU Addressing modes
-    Immediate,
-    ZeroPage,
-    ZeroPage_X,
-    ZeroPage_Y,
-    Absolute,
-    Absolute_X,
-    Absolute_Y,
-    Indirect_X,
-    Indirect_Y,
-    NoneAddressing
-} AddressingModes;
+//HALT Macro
 
-typedef struct CPU_STATUS {
-    uint8_t register_a;
-    uint8_t register_x;
-    uint8_t register_y;
-    uint8_t status;
-    uint16_t program_counter;
-    uint8_t memory[MEM_SIZE];
-} CPU_STATUS;
+#define HALT 0x00
 
-extern void load_program(const uint8_t* program, CPU_STATUS* status, const size_t size);
-extern void execute_prog(uint8_t* program, CPU_STATUS* status);
-extern uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status);
-extern void reset_cpu(CPU_STATUS* status);
-extern void lda(CPU_STATUS* status, const AddressingModes mode);
-extern uint8_t* read_prog(CPU_STATUS* status);
+//Macros to avoid boilerplate when defining instructions
 
+#define INSTRUCTION_DECL_WITH_ADDR(name) void name(CPU_STATUS *cpu, const AddressingModes mode)
+#define INSTRUCTION_DECL_NO_ADDR(name) void name(CPU_STATUS* cpu)
+
+//Instructions
+
+INSTRUCTION_DECL_WITH_ADDR(LDA); //Load to accumulator
+INSTRUCTION_DECL_WITH_ADDR(ADC); //ADD with Carry
+INSTRUCTION_DECL_WITH_ADDR(AND); //AND Operation
+INSTRUCTION_DECL_WITH_ADDR(ASL); //Arithmetic Shift Left
+INSTRUCTION_DECL_WITH_ADDR(BIT); //Bit Test
+INSTRUCTION_DECL_WITH_ADDR(CMP); //Compare acc with value (A-M) and set flags as appropiate
+INSTRUCTION_DECL_WITH_ADDR(CPX); //Compare X register with value (X-M) and set flags as appropiate
+INSTRUCTION_DECL_WITH_ADDR(CPY); //Compare Y register with value (Y-M) and set flags as appropiate
+INSTRUCTION_DECL_WITH_ADDR(DEC); //Decrement value by 1
+INSTRUCTION_DECL_WITH_ADDR(EOR); //Exclusive OR between value and accumulator (A^M)
+INSTRUCTION_DECL_WITH_ADDR(INC); //Increment value by 1
+INSTRUCTION_DECL_WITH_ADDR(JMP); //Set the program counter to address
+INSTRUCTION_DECL_WITH_ADDR(JSR); //Pushes (Address - 1) of return point to the stack and sets program counter to target
+
+
+INSTRUCTION_DECL_NO_ADDR(BCC); //Branch if carry clear
+INSTRUCTION_DECL_NO_ADDR(BCS); //Branch if carry set
+INSTRUCTION_DECL_NO_ADDR(BEQ); //Branch if zero flag set
+INSTRUCTION_DECL_NO_ADDR(BMI); //Branch if negative flag set
+INSTRUCTION_DECL_NO_ADDR(BNE); //Branch if zero flag clear
+INSTRUCTION_DECL_NO_ADDR(BPL); //Branch if negative flag clear
+INSTRUCTION_DECL_NO_ADDR(BVC); //Branch if overflow flag clear
+INSTRUCTION_DECL_NO_ADDR(BVS); //Branch if overflow flag set
+INSTRUCTION_DECL_NO_ADDR(CLC); //Clear carry Flag
+INSTRUCTION_DECL_NO_ADDR(CLD); //Clear decimal mode flag
+INSTRUCTION_DECL_NO_ADDR(CLI); //Clear interrupt disable flag
+INSTRUCTION_DECL_NO_ADDR(CLV); //Clear overflow flag
+INSTRUCTION_DECL_NO_ADDR(DEX); //Decrement X register by 1
+INSTRUCTION_DECL_NO_ADDR(DEY); //Decrement Y register by 1
+INSTRUCTION_DECL_NO_ADDR(INX); //Increment X register by 1
+INSTRUCTION_DECL_NO_ADDR(INY); //Increment Y register by 1
+
+//Helpers
+
+extern void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result);

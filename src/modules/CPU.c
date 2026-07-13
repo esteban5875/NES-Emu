@@ -1,12 +1,9 @@
-#include "../include/CPU.h"
-#include "../include/Memory.h"
 #include "../include/Error.h"
+#include "../include/CPU.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-
 
 void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result) {
     if (result == 0) { // Zero flag set if A is 0
@@ -20,14 +17,6 @@ void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result) {
     } else {
         cpu->status = cpu->status & 0b01111111; //Clears the negative flag
     }
-}
-
-void lda(CPU_STATUS *status, const AddressingModes mode){
-    uint16_t address = get_operand_address(mode, status);
-    uint8_t value = read_mem(address, status);
-
-    status->register_a = value;
-    update_zero_and_negative_flags(status, value);
 }
 
 void load_program(const uint8_t* program, CPU_STATUS* status, size_t size) {
@@ -46,12 +35,12 @@ void clear_memory(CPU_STATUS* status) {
 // use or free `program` after calling this function
 void execute_prog(uint8_t* program, CPU_STATUS* status) {
     status->program_counter = 0;
-    while (status->program_counter < RAM_SIZE && program[status->program_counter] != 0x00) {
+    while (status->program_counter < RAM_SIZE && program[status->program_counter] != HALT) {
         uint8_t opcode = program[(size_t) status->program_counter];
         status->program_counter++;
         switch (opcode) {
             case 0xA9: // Load immediate value into A
-                lda(status, Immediate);
+                LDA(status, Immediate);
             case 0xAA: // TAX - Transfer A to X
                 status->register_x = status->register_a;
                 update_zero_and_negative_flags(status, status->register_x);
@@ -70,7 +59,7 @@ void execute_prog(uint8_t* program, CPU_STATUS* status) {
 
 uint8_t* read_prog(CPU_STATUS* status) { //Function to retrieve a program from memory
     uint16_t program_counter = 0; //Set local program counter to avoid collisions with CPU counter
-    while (program_counter < 0x7FF && status->memory[program_counter] != 0x00) { //Continue until memory limit or BRK
+    while (program_counter < 0x7FF && status->memory[program_counter] != HALT) { //Continue until memory limit or BRK
         program_counter++; //Increase program counter
     }
 

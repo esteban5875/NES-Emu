@@ -1,5 +1,4 @@
-#include "../include/CPU.h"
-#include "../include/Memory.h"
+#include "../include/CPU_Data.h"
 #include "../include/Error.h"
 
 bool read_mem_accessible(uint16_t addr, CPU_STATUS* status, uint8_t* out_value) {

@@ -123,7 +123,7 @@ uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
             uint8_t base = read_mem(status->program_counter, status);
             uint8_t ptr = wrapping_add(base, status->register_x);
             uint8_t lo = read_mem(ptr, status);
-            uint8_t hi = read_mem(ptr + 1, status);
+            uint8_t hi = read_mem((uint8_t)ptr + 1, status);
             uint16_t addr = (hi << 8) | lo;
             return addr;
         }
@@ -138,7 +138,8 @@ uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
         }
 
         case NoneAddressing: {
-            panic("get_operand_address: unimplemented addressing mode %d", mode);
+            panic("get_operand: unimplemented addressing mode %d", mode);
+            return 0;
         }
     }
 }

@@ -12,8 +12,12 @@
 #define RAM_END   0x07FF
 #define RAM_SIZE (RAM_END + 1)
 
+//Flags
 
-//CPU Data
+#define CARRY_FLAG 0x01
+#define OVERFLOW_FLAG 0x40
+
+//CPU Data Entities
 
 typedef enum AddressingModes { //Enum for CPU Addressing modes
     Immediate,

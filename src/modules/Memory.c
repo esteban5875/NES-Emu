@@ -1,5 +1,5 @@
-#include "../include/CPU_Data.h"
-#include "../include/Error.h"
+#include "../include/CPU_DATA.h"
+#include "../include/ERROR.h"
 
 bool read_mem_accessible(uint16_t addr, CPU_STATUS* status, uint8_t* out_value) {
       if (addr >= RAM_SIZE) {

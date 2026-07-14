@@ -1,4 +1,4 @@
-#include "../include/Error.h"
+#include "../include/ERROR.h"
 
 noreturn void panic(const char* message, ...) {
     va_list args;

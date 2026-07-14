@@ -1,29 +1,64 @@
-#include "../include/Error.h"
+#include "../include/ERROR.h"
 #include "../include/CPU.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result) {
-    if (result == 0) { // Zero flag set if A is 0
-        cpu->status = cpu->status | 0b00000010; //Sets the zero flag
-    } else {
-        cpu->status = cpu->status & 0b11111101; //Clears the zero flag
+static uint8_t addressing_mode_size(const AddressingModes mode) {
+    switch (mode) {
+        case NoneAddressing:
+            return 0;
+        case Immediate:
+            return 1;
+        case ZeroPage:
+            return 1;
+        case ZeroPage_X:
+            return 1;
+        case ZeroPage_Y:
+            return 1;
+        case Indirect_X:
+            return 1;
+        case Indirect_Y:
+            return 1;
+        case Absolute:
+            return 2;
+        case Absolute_X:
+            return 2;
+        case Absolute_Y:
+            return 2;
+        case Indirect:
+            return 2;
     }
 
-    if (result & 0b10000000) { // Negative flag set if result is negative (bit 7 is set)
-        cpu->status = cpu->status | 0b10000000; //Sets the negative flag
-    } else {
-        cpu->status = cpu->status & 0b01111111; //Clears the negative flag
-    }
+    panic("addressing_mode_size: unhandled mode %d", mode);
+    return 0;
+}
+
+void update_all_flags(CPU_STATUS* cpu, uint8_t operand, uint16_t result) {
+    uint8_t result8 = (uint8_t) result;
+    uint8_t old_a    = cpu->register_a; // must be captured before register_a is overwritten
+
+    UPDATE_FLAG(cpu, FLAG_CARRY, result > 0xFF);
+
+    UPDATE_FLAG(cpu, FLAG_OVERFLOW,
+        (~(old_a ^ operand) & (old_a ^ result8) & 0x80));
+
+    UPDATE_FLAG(cpu, FLAG_ZERO, result8 == 0);
+    UPDATE_FLAG(cpu, FLAG_NEGATIVE, result8 & 0x80);
+}
+
+
+void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result) {
+    UPDATE_FLAG(cpu, FLAG_ZERO, result == 0);
+    UPDATE_FLAG(cpu, FLAG_NEGATIVE, result & 0x80);
 }
 
 void load_program(const uint8_t* program, CPU_STATUS* status, size_t size) {
     if (size > RAM_SIZE) {
         size = RAM_SIZE; // avoid overflowing memory[]
     }
-    
+
     memcpy(status->memory, program, size);
 }
 
@@ -39,17 +74,24 @@ void execute_prog(uint8_t* program, CPU_STATUS* status) {
         uint8_t opcode = program[(size_t) status->program_counter];
         status->program_counter++;
         switch (opcode) {
-            case 0xA9: // Load immediate value into A
+            case 0xA9: // LDA Immediate
                 LDA(status, Immediate);
+                status->program_counter += addressing_mode_size(Immediate);
+                break;
+
             case 0xAA: // TAX - Transfer A to X
                 status->register_x = status->register_a;
                 update_zero_and_negative_flags(status, status->register_x);
                 break;
-            
+
             case 0xE8: // INX - Increment X
                 status->register_x++;
                 update_zero_and_negative_flags(status, status->register_x);
                 break;
+
+            default:
+                panic("execute_prog: unknown opcode 0x%02X at PC 0x%04X",
+                      opcode, status->program_counter - 1);
         }
     }
 
@@ -71,7 +113,7 @@ uint8_t* read_prog(CPU_STATUS* status) { //Function to retrieve a program from m
     }
 
     program[program_counter] = 0x00; // explicit terminator
-    
+
     return program;
 }
 
@@ -83,13 +125,13 @@ void reset_cpu(CPU_STATUS *status) { //Reset the CPU state and program counter
     status->program_counter = read_mem_u16(0xFFFC, status);
 }
 
-uint8_t wrapping_add(uint8_t pos, uint8_t reg){ //Helper function for wrapping add
-    return (uint8_t) pos + reg;
+uint8_t wrapping_add(uint8_t pos, uint8_t reg) { //Helper function for wrapping add
+    return (uint8_t)(pos + reg);
 }
 
 uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
     switch (mode) {
-        case Immediate: return status->program_counter; //Immediate addressing mode, the operand is directly next to the operator 
+        case Immediate: return status->program_counter; //Immediate addressing mode, the operand is directly next to the operator
 
         case ZeroPage: return (uint16_t) read_mem(status->program_counter, status); //Zero page addressing for operand (0-255)
 
@@ -106,7 +148,7 @@ uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
             uint16_t addr = (uint16_t) wrapping_add(pos, status->register_y);
             return addr;
         }
-        
+
         case Absolute_X: { //Take 16 bit instruction address and add X
             uint16_t pos = read_mem_u16(status->program_counter, status);
             uint16_t addr = pos + status->register_x;
@@ -115,7 +157,7 @@ uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
 
         case Absolute_Y: { //Take 16 bit instruction address and add Y
             uint16_t pos = read_mem_u16(status->program_counter, status);
-            uint16_t addr = pos +  status->register_y;
+            uint16_t addr = pos + status->register_y;
             return addr;
         }
 
@@ -123,7 +165,7 @@ uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
             uint8_t base = read_mem(status->program_counter, status);
             uint8_t ptr = wrapping_add(base, status->register_x);
             uint8_t lo = read_mem(ptr, status);
-            uint8_t hi = read_mem((uint8_t)ptr + 1, status);
+            uint8_t hi = read_mem((uint8_t)(ptr + 1), status); // fixed: cast wraps ptr+1, not just ptr
             uint16_t addr = (hi << 8) | lo;
             return addr;
         }
@@ -131,11 +173,25 @@ uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
         case Indirect_Y: { //Get significant two bytes from PC and add Y to get the address
             uint8_t base = read_mem(status->program_counter, status);
             uint8_t lo = read_mem(base, status);
-            uint8_t hi = read_mem((uint8_t) (base + 1), status);
+            uint8_t hi = read_mem((uint8_t)(base + 1), status);
             uint16_t deref_base = (hi << 8) | lo;
             uint16_t addr = deref_base + status->register_y;
             return addr;
         }
+
+        case Indirect: {
+            uint16_t ptr = read_mem_u16(status->program_counter, status);
+            uint16_t lo = read_mem(ptr, status);
+            uint16_t hi;
+            if ((ptr & 0x00FF) == 0x00FF) {
+                // reproduce the 6502 page-boundary bug: wraps within the same page
+                hi = read_mem(ptr & 0xFF00, status);
+            } else {
+                hi = read_mem(ptr + 1, status);
+            }
+            uint16_t addr = (uint16_t)((hi << 8) | lo);
+            return addr;
+        }  
 
         case NoneAddressing: {
             panic("get_operand: unimplemented addressing mode %d", mode);
@@ -143,7 +199,3 @@ uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
         }
     }
 }
-
-
-
-

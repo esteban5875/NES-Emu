@@ -14,8 +14,22 @@
 
 //Flags
 
-#define CARRY_FLAG 0x01
-#define OVERFLOW_FLAG 0x40
+#define FLAG_CARRY      0x01  // bit 0
+#define FLAG_ZERO       0x02  // bit 1
+#define FLAG_INTERRUPT  0x04  // bit 2
+#define FLAG_DECIMAL    0x08  // bit 3
+#define FLAG_BREAK      0x10  // bit 4
+#define FLAG_UNUSED     0x20  // bit 5
+#define FLAG_OVERFLOW   0x40  // bit 6
+#define FLAG_NEGATIVE   0x80  // bit 7
+
+//Generic set/clear/check helpers
+
+#define SET_FLAG(cpu, flag)     ((cpu)->status |= (flag))
+#define CLEAR_FLAG(cpu, flag)   ((cpu)->status &= ~(flag))
+#define UPDATE_FLAG(cpu, flag, cond) \
+    ((cond) ? SET_FLAG(cpu, flag) : CLEAR_FLAG(cpu, flag))
+#define CHECK_FLAG(cpu, flag)   (((cpu)->status & (flag)) != 0)
 
 //CPU Data Entities
 
@@ -27,6 +41,7 @@ typedef enum AddressingModes { //Enum for CPU Addressing modes
     Absolute,
     Absolute_X,
     Absolute_Y,
+    Indirect,
     Indirect_X,
     Indirect_Y,
     NoneAddressing

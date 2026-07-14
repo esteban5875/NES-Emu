@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CPU_Data.h"
+#include "CPU_DATA.h"
 
 //HALT Macro
 
@@ -8,8 +8,16 @@
 
 //Macros to avoid boilerplate when defining instructions
 
-#define INSTRUCTION_DECL_WITH_ADDR(name) void name(CPU_STATUS *cpu, const AddressingModes mode)
-#define INSTRUCTION_DECL_NO_ADDR(name) void name(CPU_STATUS* cpu)
+#define INSTRUCTION_DECL_WITH_ADDR(name) void name(CPU_STATUS *status, const AddressingModes mode)
+#define INSTRUCTION_DECL_NO_ADDR(name) void name(CPU_STATUS *status)
+
+//Helper Macros
+
+#define VALIDATE_MODE(instr_name, mode, ...) \
+    do { \
+        AddressingModes _valid[] = { __VA_ARGS__ }; \
+        validate_mode(instr_name, mode, _valid, sizeof(_valid) / sizeof(_valid[0])); \
+    } while (0)
 
 //Instructions
 
@@ -48,3 +56,4 @@ INSTRUCTION_DECL_NO_ADDR(INY); //Increment Y register by 1
 //Helpers
 
 extern void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result);
+extern void update_all_flags(CPU_STATUS* cpu, uint8_t operand, uint16_t result);

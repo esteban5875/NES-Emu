@@ -118,5 +118,6 @@ void JMP(CPU_STATUS *status, const AddressingModes mode) {
     VALIDATE_MODE("JMP", mode, Absolute, Indirect);
 
     uint16_t address = get_operand_address(mode, status);
+    
     status->program_counter = address;
 }

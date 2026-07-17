@@ -5,6 +5,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+static void reset_pc(CPU_STATUS* status){
+    status->program_counter = ROM_START;
+}
+
 static uint8_t addressing_mode_size(const AddressingModes mode) {
     switch (mode) {
         case NoneAddressing:
@@ -54,24 +58,33 @@ void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result) {
     UPDATE_FLAG(cpu, FLAG_NEGATIVE, result & 0x80);
 }
 
-void load_program(const uint8_t* program, CPU_STATUS* status, size_t size) {
-    if (size > RAM_SIZE) {
-        size = RAM_SIZE; // avoid overflowing memory[]
+void load_program(uint8_t* program, CPU_STATUS* status, size_t size) {
+    if (size > ROM_SIZE) {
+        size = ROM_SIZE; // avoid overflowing memory[]
     }
 
-    memcpy(status->memory, program, size);
+    memcpy(&status->memory[ROM_START], program, size);
 }
 
-void clear_memory(CPU_STATUS* status) {
+void clear_program(CPU_STATUS* status){
+    memset(&status->memory[ROM_START], 0, ROM_SIZE);
+}
+
+void clear_ram(CPU_STATUS* status) {
     memset(status->memory, 0, RAM_SIZE);
+}
+
+void clear_memory(CPU_STATUS* status){
+    memset(status->memory, 0, sizeof(status->memory));
 }
 
 // Takes ownership of `program` and frees it internally. Caller must not
 // use or free `program` after calling this function
-void execute_prog(uint8_t* program, CPU_STATUS* status) {
-    status->program_counter = 0;
-    while (status->program_counter < RAM_SIZE && program[status->program_counter] != HALT) {
-        uint8_t opcode = program[(size_t) status->program_counter];
+void execute_prog(CPU_STATUS* status, uint8_t* program) {
+    reset_pc(status);
+    
+    while (status->program_counter <= ROM_END && status->memory[status->program_counter] != HALT) {
+        uint8_t opcode = status->memory[(size_t) status->program_counter];
         status->program_counter++;
         switch (opcode) {
             case 0xA9: // LDA Immediate
@@ -81,11 +94,13 @@ void execute_prog(uint8_t* program, CPU_STATUS* status) {
 
             case 0xAA: // TAX - Transfer A to X
                 status->register_x = status->register_a;
+                status->program_counter += addressing_mode_size(NoneAddressing);
                 update_zero_and_negative_flags(status, status->register_x);
                 break;
 
             case 0xE8: // INX - Increment X
                 status->register_x++;
+                status->program_counter += addressing_mode_size(NoneAddressing);
                 update_zero_and_negative_flags(status, status->register_x);
                 break;
 
@@ -98,22 +113,23 @@ void execute_prog(uint8_t* program, CPU_STATUS* status) {
     free(program);
 }
 
-
-uint8_t* read_prog(CPU_STATUS* status) { //Function to retrieve a program from memory
-    uint16_t program_counter = 0; //Set local program counter to avoid collisions with CPU counter
-    while (program_counter < 0x7FF && status->memory[program_counter] != HALT) { //Continue until memory limit or BRK
-        program_counter++; //Increase program counter
+uint8_t* read_prog(CPU_STATUS* status) {
+    uint16_t program_counter = ROM_START;
+    while (program_counter <= ROM_END && status->memory[program_counter] != HALT) {
+        program_counter++;
     }
 
-    uint8_t* program = malloc((size_t) program_counter + 1); //Allocate an array of program counter size
+    size_t len = (size_t)(program_counter - ROM_START);
+    
+    uint8_t* program = malloc(len + 1);
+    
     if (program == NULL) return NULL;
 
-    for (size_t i = 0; i < program_counter; i++) {
-        program[i] = status->memory[i]; //Store program in alloc
+    for (size_t i = 0; i < len; i++) {
+        program[i] = status->memory[ROM_START + i];
     }
 
-    program[program_counter] = 0x00; // explicit terminator
-
+    program[len] = 0x00;
     return program;
 }
 
@@ -122,7 +138,7 @@ void reset_cpu(CPU_STATUS *status) { //Reset the CPU state and program counter
     status->register_a = 0;
     status->register_x = 0;
     status->register_y = 0;
-    status->program_counter = read_mem_u16(0xFFFC, status);
+    status->program_counter = read_mem_u16(0x8000, status);
 }
 
 uint8_t wrapping_add(uint8_t pos, uint8_t reg) { //Helper function for wrapping add

@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <stdio.h>
+#include <malloc.h>
 
 static CPU_STATUS status = {0};
 
@@ -25,7 +26,7 @@ void log_sys(){
     int current_inst = 0;
 
     do {
-        opcode = status.memory[current_inst];
+        opcode = status.memory[ROM_START + current_inst];
         printf("Instruction %d : %02X\n", ((int) current_inst + 1), opcode);
         current_inst++;
     } while (opcode != 0x00);
@@ -37,17 +38,17 @@ void test_read_prog(uint8_t test_prog[], size_t size) {
     
     uint8_t* test_prog_from_mem = read_prog(&status);
     
-    execute_prog(test_prog_from_mem, &status);
+    execute_prog(&status, test_prog_from_mem);
 
     //Print statements for debugging
 
-    assert(status.program_counter == size - 1);
+    log_sys();
+
+    assert(status.program_counter == ROM_START + size - 1);
     assert(status.register_a == 0xC0);
     assert(status.register_x == 0xC1);
     assert((status.status & 0b00000010) == 0);      // zero flag should be clear
     assert((status.status & 0b10000000) == 0b10000000); // negative flag should be set
-
-    log_sys();
 
     reset_cpu(&status);
 }

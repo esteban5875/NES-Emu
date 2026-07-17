@@ -10,7 +10,11 @@
 
 #define RAM_START 0x0000
 #define RAM_END   0x07FF
-#define RAM_SIZE (RAM_END + 1)
+#define RAM_SIZE (RAM_END - RAM_START + 1)
+
+#define ROM_START 0x8000
+#define ROM_END  0xFFFF
+#define ROM_SIZE (ROM_END - ROM_START + 1)
 
 //Flags
 
@@ -58,13 +62,13 @@ typedef struct CPU_STATUS {
 
 //CPU Logic
 
-extern void load_program(const uint8_t* program, CPU_STATUS* status, const size_t size);
-extern void execute_prog(uint8_t* program, CPU_STATUS* status);
+extern void load_program(uint8_t* program, CPU_STATUS* status, const size_t size);
+extern void execute_prog(CPU_STATUS* status, uint8_t* program); //Takes program just for memory cleanup
 extern uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status);
 extern void reset_cpu(CPU_STATUS* status);
 extern uint8_t* read_prog(CPU_STATUS* status);
 
-//CPU Mem Logic
+//Mem Logic
 
 extern bool read_mem_accessible(uint16_t addr, CPU_STATUS* status, uint8_t* out_value);
 extern void write_mem_accessible(uint16_t addr, uint8_t value, CPU_STATUS* status);
@@ -73,5 +77,9 @@ extern void write_mem_u16(uint16_t value, uint16_t addr, CPU_STATUS* status);
 extern uint8_t read_mem(uint16_t addr, CPU_STATUS* status);
 extern void write_mem(uint16_t addr, uint8_t value, CPU_STATUS* status);
 extern void clear_memory(CPU_STATUS* status);
+extern void clear_ram(CPU_STATUS* status);
 
 
+//Prog logic
+
+extern void clear_program(CPU_STATUS* status);

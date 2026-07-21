@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 src/core/bin
 ser/server/bin
+=======
+bin
+*.o
+>>>>>>> dadef67dbdfbf7a5c76a4ca98f39d77e408e6698

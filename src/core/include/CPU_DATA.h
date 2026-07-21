@@ -4,17 +4,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-//Consts
-
-#define MEM_SIZE 0x10000
-
-#define RAM_START 0x0000
-#define RAM_END   0x07FF
-#define RAM_SIZE (RAM_END - RAM_START + 1)
-
-#define ROM_START 0x8000
-#define ROM_END  0xFFFF
-#define ROM_SIZE (ROM_END - ROM_START + 1)
+#include "MEM_MAP.h"
 
 //Flags
 
@@ -57,6 +47,7 @@ typedef struct CPU_STATUS {
     uint8_t register_y;
     uint8_t status;
     uint16_t program_counter;
+    uint8_t stack_pointer;
     uint8_t memory[MEM_SIZE];
 } CPU_STATUS;
 
@@ -83,3 +74,11 @@ extern void clear_ram(CPU_STATUS* status);
 //Prog logic
 
 extern void clear_program(CPU_STATUS* status);
+
+//Stack logic
+
+extern void push(CPU_STATUS *status, uint8_t val);
+extern uint8_t pull(CPU_STATUS *status);
+
+extern void push_u16(CPU_STATUS *status, uint16_t val);
+extern uint16_t pull_u16(CPU_STATUS *status);

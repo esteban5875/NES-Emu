@@ -25,7 +25,8 @@ INSTRUCTION_DECL_WITH_ADDR(LDA); //Load to accumulator
 INSTRUCTION_DECL_WITH_ADDR(ADC); //ADD with Carry
 INSTRUCTION_DECL_WITH_ADDR(AND); //AND Operation
 INSTRUCTION_DECL_WITH_ADDR(ASL); //Arithmetic Shift Left
-INSTRUCTION_DECL_WITH_ADDR(BIT); //Bit Test
+INSTRUCTION_DECL_WITH_ADDR(BIT); //
+INSTRUCTION_DECL_NO_ADDR(BCC); //BrBit Test
 INSTRUCTION_DECL_WITH_ADDR(CMP); //Compare acc with value (A-M) and set flags as appropiate
 INSTRUCTION_DECL_WITH_ADDR(CPX); //Compare X register with value (X-M) and set flags as appropiate
 INSTRUCTION_DECL_WITH_ADDR(CPY); //Compare Y register with value (Y-M) and set flags as appropiate
@@ -57,3 +58,14 @@ INSTRUCTION_DECL_NO_ADDR(INY); //Increment Y register by 1
 
 extern void update_zero_and_negative_flags(CPU_STATUS* cpu, uint8_t result);
 extern void update_all_flags(CPU_STATUS* cpu, uint8_t operand, uint16_t result);
+
+//Standards
+
+#define OP_ADDRESS       get_operand_address(mode, status)
+#define OP_VALUE         read_mem(OP_ADDRESS, status)
+
+#define UPDATE_REG(status, reg, val)      \
+    do {                                  \
+        (status)->reg = (val);            \
+        update_zero_and_negative_flags((status), (status)->reg); \
+    } while (0)

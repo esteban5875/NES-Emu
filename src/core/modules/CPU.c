@@ -116,73 +116,84 @@ uint8_t wrapping_add(uint8_t pos, uint8_t reg) { //Helper function for wrapping 
 
 uint16_t get_operand_address(const AddressingModes mode, CPU_STATUS* status) {
     switch (mode) {
-    case Immediate: {
-        uint16_t addr = status->program_counter;
-        status->program_counter += 1;
-        return addr;
-    }
-    case ZeroPage: {
-        uint16_t addr = (uint16_t) read_mem(status->program_counter, status);
-        status->program_counter += 1;
-        return addr;
-    }
-    case Absolute: {
-        uint16_t addr = read_mem_u16(status->program_counter, status);
-        status->program_counter += 2;
-        return addr;
-    }
-    case ZeroPage_X: {
-        uint8_t pos = read_mem(status->program_counter, status);
-        status->program_counter += 1;
-        return (uint16_t) wrapping_add(pos, status->register_x);
-    }
-    case ZeroPage_Y: {
-        uint8_t pos = read_mem(status->program_counter, status);
-        status->program_counter += 1;
-        return (uint16_t) wrapping_add(pos, status->register_y);
-    }
-    case Absolute_X: {
-        uint16_t pos = read_mem_u16(status->program_counter, status);
-        status->program_counter += 2;
-        return pos + status->register_x;
-    }
-    case Absolute_Y: {
-        uint16_t pos = read_mem_u16(status->program_counter, status);
-        status->program_counter += 2;
-        return pos + status->register_y;
-    }
-    case Indirect_X: {
-        uint8_t base = read_mem(status->program_counter, status);
-        status->program_counter += 1;
-        uint8_t ptr = wrapping_add(base, status->register_x);
-        uint8_t lo = read_mem(ptr, status);
-        uint8_t hi = read_mem((uint8_t)(ptr + 1), status);
-        return (uint16_t)((hi << 8) | lo);
-    }
-    case Indirect_Y: {
-        uint8_t base = read_mem(status->program_counter, status);
-        status->program_counter += 1;
-        uint8_t lo = read_mem(base, status);
-        uint8_t hi = read_mem((uint8_t)(base + 1), status);
-        uint16_t deref_base = (uint16_t)((hi << 8) | lo);
-        return deref_base + status->register_y;
-    }
-    case Indirect: {
-        uint16_t ptr = read_mem_u16(status->program_counter, status);
-        status->program_counter += 2;
-        uint16_t lo = read_mem(ptr, status);
-        uint16_t hi;
-        if ((ptr & 0x00FF) == 0x00FF) {
-            hi = read_mem(ptr & 0xFF00, status);   // page-boundary bug preserved
-        } else {
-            hi = read_mem(ptr + 1, status);
+        case Immediate: {
+            uint16_t addr = status->program_counter;
+            status->program_counter += 1;
+            return addr;
         }
-        return (uint16_t)((hi << 8) | lo);
+        case ZeroPage: {
+            uint16_t addr = (uint16_t) read_mem(status->program_counter, status);
+            status->program_counter += 1;
+            return addr;
+        }
+        case Absolute: {
+            uint16_t addr = read_mem_u16(status->program_counter, status);
+            status->program_counter += 2;
+            return addr;
+        }
+        case ZeroPage_X: {
+            uint8_t pos = read_mem(status->program_counter, status);
+            status->program_counter += 1;
+            return (uint16_t) wrapping_add(pos, status->register_x);
+        }
+        case ZeroPage_Y: {
+            uint8_t pos = read_mem(status->program_counter, status);
+            status->program_counter += 1;
+            return (uint16_t) wrapping_add(pos, status->register_y);
+        }
+        case Absolute_X: {
+            uint16_t pos = read_mem_u16(status->program_counter, status);
+            status->program_counter += 2;
+            return pos + status->register_x;
+        }
+        case Absolute_Y: {
+            uint16_t pos = read_mem_u16(status->program_counter, status);
+            status->program_counter += 2;
+            return pos + status->register_y;
+        }
+        case Indirect_X: {
+            uint8_t base = read_mem(status->program_counter, status);
+            status->program_counter += 1;
+            uint8_t ptr = wrapping_add(base, status->register_x);
+            uint8_t lo = read_mem(ptr, status);
+            uint8_t hi = read_mem((uint8_t)(ptr + 1), status);
+            return (uint16_t)((hi << 8) | lo);
+        }
+        case Indirect_Y: {
+            uint8_t base = read_mem(status->program_counter, status);
+            status->program_counter += 1;
+            uint8_t lo = read_mem(base, status);
+            uint8_t hi = read_mem((uint8_t)(base + 1), status);
+            uint16_t deref_base = (uint16_t)((hi << 8) | lo);
+            return deref_base + status->register_y;
+        }
+        case Indirect: {
+            uint16_t ptr = read_mem_u16(status->program_counter, status);
+            status->program_counter += 2;
+            uint16_t lo = read_mem(ptr, status);
+            uint16_t hi;
+            if ((ptr & 0x00FF) == 0x00FF) {
+                hi = read_mem(ptr & 0xFF00, status);   // page-boundary bug preserved
+            } else {
+                hi = read_mem(ptr + 1, status);
+            }
+            return (uint16_t)((hi << 8) | lo);
+        }
+
+        case NoneAddressing:{
+            panic("get_operand: unimplemented addressing mode %d", mode);
+            return 0;
+        }
+
+        case Relative: {
+            uint16_t addr = status->program_counter;
+            status->program_counter += 1;
+            return addr;
+        }
+
+        default: {
+            panic("get_operand: unhandled mode %d", mode);   // silences the non-void warning
+            return 0;
+        }
     }
-    case NoneAddressing:
-        panic("get_operand: unimplemented addressing mode %d", mode);
-        return 0;
-    }
-    panic("get_operand: unhandled mode %d", mode);   // silences the non-void warning
-    return 0;
 }

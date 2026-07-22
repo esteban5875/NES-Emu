@@ -38,6 +38,7 @@ typedef enum AddressingModes { //Enum for CPU Addressing modes
     Indirect,
     Indirect_X,
     Indirect_Y,
+    Relative,
     NoneAddressing
 } AddressingModes;
 

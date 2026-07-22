@@ -39,3 +39,7 @@
 #define ROM_START 0x8000
 #define ROM_END   0xFFFF
 #define ROM_SIZE  (ROM_END - ROM_START + 1)   
+
+#define VECTOR_NMI   0xFFFA   // PPU VBlank; not maskable by the I flag
+#define VECTOR_RESET 0xFFFC   // power-on / reset; PC loaded from here
+#define VECTOR_IRQ   0xFFFE   // hardware IRQ and BRK share this vector

@@ -1,0 +1,11 @@
+# Build output directory (set as BIN_DIR in the makefile)
+bin/
+
+# Compiled objects, libraries and executables
+*.o
+*.a
+*.so
+*.d
+
+# Debug info
+*.dSYM/

@@ -1,0 +1,12 @@
+# Build output directory (expected controller binary: bin/controller)
+bin/
+
+# Compiled objects, libraries and executables
+*.o
+*.obj
+*.a
+*.so
+*.d
+
+# Debug info
+*.dSYM/

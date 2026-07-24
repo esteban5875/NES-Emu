@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../core/include/CPU_DATA.h"
+#include "../../nes-emu-model/include/CPU_DATA.h"
 
 void nes_init(void);
 void nes_load_rom(const uint8_t* data, size_t len);
